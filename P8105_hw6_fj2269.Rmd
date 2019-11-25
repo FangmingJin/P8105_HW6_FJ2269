@@ -47,6 +47,7 @@ the parameter of predictor momage is 9.997, the parameter of predictor delwt is 
 As we can see from this model, The p-value of these three predictors are much less than 0.05, which means that effect of mother weight, age and baby GA on baby birth weight is significant. The p-value of anova is < 2.2e-16, which means that the overall influence of covariate is significant. Adjusted R-squared is 0.2319. 23% of the variance found in the response variable (birth weight) can be explained by the predictor variable
 
 The fitting formula of this model is as below:
+
 $$
 Y_{bwt}=-275.69+10X_{age}+5.44X_{weight}+60.76X_{GA}
 $$
@@ -175,16 +176,16 @@ Through the distribution of value on the peak of this cruve is a little bit irre
 
 95% CI for r squared and log(beta0*beta1)
 ```{r Q2S3}
-lower_limit_r = quantile(pull(bootstrap_weather,r.squared), probs = c(0.05, 0.95)) %>% 
+lower_limit_r = quantile(pull(bootstrap_weather,r.squared), probs = c(0.025, 0.975)) %>% 
   .[[1]] %>%
   round(., 3)
-upper_limit_r = quantile(pull(bootstrap_weather,r.squared), probs = c(0.05, 0.95)) %>% 
+upper_limit_r = quantile(pull(bootstrap_weather,r.squared), probs = c(0.025, 0.975)) %>% 
   .[[2]] %>%
   round(., 3)
-lower_limit_log = quantile(pull(bootstrap_weather,log), probs = c(0.05, 0.95)) %>% 
+lower_limit_log = quantile(pull(bootstrap_weather,log), probs = c(0.025, 0.975)) %>% 
   .[[1]] %>%
   round(., 3)
-upper_limit_log = quantile(pull(bootstrap_weather,log), probs = c(0.05, 0.95)) %>% 
+upper_limit_log = quantile(pull(bootstrap_weather,log), probs = c(0.025, 0.975)) %>% 
   .[[2]] %>%
   round(., 3)
 ```
