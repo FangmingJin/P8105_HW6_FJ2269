@@ -1,0 +1,116 @@
+---
+title: "p8105_hw6_fj2269"
+author: "Fangming Jin"
+date: "11/15/2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(modelr)
+library(mgcv)
+library(rnoaa)
+```
+
+**Question 1**
+
+**Clean dataset**
+```{r Q1S1, message=FALSE, warning=FALSE}
+birthweight = read_csv(file = "./data/birthweight.csv") %>%
+  janitor::clean_names() %>%
+  mutate(babysex = factor(babysex, labels = c("male", "female")),
+         frace = factor(frace, labels = c("White", "Black", " Asian", "Puerto Rican","Other")),
+         malform = factor(malform, labels = c("absent", "present")),
+         mrace = factor(mrace, labels = c("White", "Black", " Asian", "Puerto Rican")),
+         ) %>%
+  drop_na()
+birthweight
+```
+
+**build the model**
+
+I refer result of literature published in Journal of education and health promotion: Risk factors of low birth weight and effect of them on growth pattern of children up to sixth months of life: A cross-sectional study.
+
+In this study, mother's age and weight, GA during delivery have a significant relationship with birth weight. So we use momage, delwt and gaweeks as predictors to build a linear regression model.
+```{r Q1S2}
+model = birthweight %>% 
+  lm(bwt ~ momage + delwt + gaweeks, data = .) %>% 
+  summary()
+tidy_model = birthweight %>% 
+  lm(bwt ~ momage + delwt + gaweeks, data = .) %>% 
+  broom::tidy()
+model
+```
+the parameter of predictor momage is 9.997, the parameter of predictor delwt is 5.44, the parameter of gaweeks is 60.76. the intercept is -275.69.
+
+As we can see from this model, The p-value of these three predictors are much less than 0.05, which means that effect of mother weight, age and baby GA on baby birth weight is significant. The p-value of anova is < 2.2e-16, which means that the overall influence of covariate is significant. Adjusted R-squared is 0.2319. 23% of the variance found in the response variable (birth weight) can be explained by the predictor variable
+
+The fitting formula of this model is as below:
+$$
+Y_{bwt}=-275.69+10X_{age}+5.44X_{weight}+60.76X_{GA}
+$$
+
+**Residual vs fitted value**
+
+```{r Q1S3}
+lm_birthweight = lm(bwt ~ momage + delwt + gaweeks, data = birthweight)
+plot = birthweight %>% 
+  modelr::add_predictions(lm_birthweight) %>% 
+  modelr::add_residuals(lm_birthweight) %>% 
+  rename("prediction" = pred, "residual" = resid) %>%
+  ggplot(aes(x = prediction, y = residual)) +
+    geom_point(size = 1, alpha = 0.5, color = "brown") +
+    labs(title = "Plot of Residual vs fitted value", x="Predicted/Fitted value", y="Residual") + 
+    geom_abline(intercept = 0, slope = 0)
+plot
+```
+
+**Compare of models**
+
+We need to compare my model with another two model:
+
+model A: using length at birth and gestational age as predictors (main effects only)
+
+model B: using head circumference, length, sex, and all interactions (including the three-way interaction) between these
+
+The result of model A is as below:
+
+```{r}
+lm(bwt ~ blength + gaweeks, data = birthweight) %>% summary()
+```
+
+The result of model B is as below:
+
+```{r}
+lm(bwt ~ bhead * blength * babysex, data = birthweight) %>% summary()
+```
+
+```{r Q2S3SS2}
+cross_valid = 
+  crossv_mc(birthweight, 100) %>%
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble)) %>%
+  mutate(model1_mod  = map(train, ~lm(bwt ~ momage + delwt + gaweeks, data = .x)),
+         model2_mod  = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+         model3_mod  = map(train, ~lm(bwt ~ bhead * blength * babysex, data = .x))) %>% 
+  mutate(rmse_model1 = map2_dbl(model1_mod, test, ~rmse(model = .x, data = .y)),
+         rmse_model2 = map2_dbl(model2_mod, test, ~rmse(model = .x, data = .y)),
+         rmse_model3 = map2_dbl(model3_mod, test, ~rmse(model = .x, data = .y))) %>%
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model),
+         model = recode(model, "model1" = "my model", "model2" = "model A", "model3" = "model B")) %>% 
+  ggplot(aes(x = model, y = rmse)) + 
+    geom_violin(aes(fill = model), color = "black", alpha = .5) +
+    labs(title = "Comparision of three models", y="RMSE value") +
+    theme(plot.title = element_text(hjust = 0.5), axis.title.x=element_blank())
+cross_valid
+```
+
+As we can see from the violin plot, model B have the lowest mean and median of root mean squared errors, the model I built have the highest mean and median of root mean squared errors, and model A is in the middle. This means in these three model, prediction accuracy of model B is relatively high, the prediction accuracy of my model is relatively low, the prediction accuracy of model A is in the middle.
