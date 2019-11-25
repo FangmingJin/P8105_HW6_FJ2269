@@ -48,9 +48,7 @@ As we can see from this model, The p-value of these three predictors are much le
 
 The fitting formula of this model is as below:
 
-$$
-Y_{bwt}=-275.69+10X_{age}+5.44X_{weight}+60.76X_{GA}
-$$
+estimated Y_{bwt}=-275.69+10I(Trt = age)+5.44I(Trt = weight)+60.76I(Trt = gaweeks)
 
 **Residual vs fitted value**
 
