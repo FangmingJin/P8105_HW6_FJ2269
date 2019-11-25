@@ -114,3 +114,78 @@ cross_valid
 ```
 
 As we can see from the violin plot, model B have the lowest mean and median of root mean squared errors, the model I built have the highest mean and median of root mean squared errors, and model A is in the middle. This means in these three model, prediction accuracy of model B is relatively high, the prediction accuracy of my model is relatively low, the prediction accuracy of model A is in the middle.
+
+**Question 2**
+
+First we use 5000 bootstrap samples and produce estimates of these two quantities for each bootstrap sample.
+```{r Q2S1}
+weather_df = 
+  meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+bootstrap_weather = 
+  weather_df %>%
+  modelr::bootstrap(n = 5000) %>%
+  mutate(
+    models = map(strap, ~lm(tmax ~ tmin, data = .x)),
+    results = map(models, broom::glance),
+    results2 = map(models, broom::tidy)) %>% 
+  select(-strap, -models) %>% 
+  unnest(results, results2) %>% 
+  select(.id, r.squared, term, estimate) %>%
+  pivot_wider(
+    names_from = term,
+    values_from = estimate
+  ) %>%
+  rename("intercept" = `(Intercept)`) %>%
+  mutate(log = log(intercept*tmin, base = exp(1))) %>%
+  select(r.squared, log)
+bootstrap_weather
+```
+
+Plot the distribution of two quantity
+```{r Q2S2SS1}
+plot_boot1 = bootstrap_weather %>%
+  ggplot(aes(x = r.squared)) +
+    geom_density(fill = "orange", color = "black", alpha = 0.5) +
+    labs(title = "Distribution of r squared", x="r squared", y="density") +
+    theme(plot.title = element_text(hjust = 0.5))
+plot_boot1
+```
+
+through cruve above is still skewed for its left tail is longer than the right one. The distribution of r squared is closed to normal distribution. Its mean is `r round(mean(pull(bootstrap_weather, r.squared)),4)`, its sd is `r round(sd(pull(bootstrap_weather, r.squared)),4)`
+
+```{r Q2S2SS2}
+plot_boot2 = bootstrap_weather %>%
+  ggplot(aes(x = log)) +
+    geom_density(fill = "blue", color = "black", alpha = 0.5) +
+    labs(title = "Distribution of log(β0*β1)", x="log(β0*β1)", y="density") +
+    theme(plot.title = element_text(hjust = 0.5))
+plot_boot2
+```
+
+Through the distribution of value on the peak of this cruve is a little bit irregular.The distribution of log of estimated beta0 multiple beta1 is closed to normal distribution. Its mean is `r round(mean(pull(bootstrap_weather, log)),4)`, its sd is `r round(sd(pull(bootstrap_weather, log)),4)`
+
+95% CI for r squared and log(beta0*beta1)
+```{r Q2S3}
+lower_limit_r = quantile(pull(bootstrap_weather,r.squared), probs = c(0.05, 0.95)) %>% 
+  .[[1]] %>%
+  round(., 3)
+upper_limit_r = quantile(pull(bootstrap_weather,r.squared), probs = c(0.05, 0.95)) %>% 
+  .[[2]] %>%
+  round(., 3)
+lower_limit_log = quantile(pull(bootstrap_weather,log), probs = c(0.05, 0.95)) %>% 
+  .[[1]] %>%
+  round(., 3)
+upper_limit_log = quantile(pull(bootstrap_weather,log), probs = c(0.05, 0.95)) %>% 
+  .[[2]] %>%
+  round(., 3)
+```
+The 95% CI for r squared is (`r lower_limit_r`, `r upper_limit_r`), The 95% CI for log(beta0*beta1) is (`r lower_limit_log`, `r upper_limit_log`)
